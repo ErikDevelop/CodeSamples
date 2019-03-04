@@ -1,0 +1,44 @@
+<script id="vertexshader" type="x-shader/x-vertex">
+    precision highp float;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform sampler2D map;
+
+    attribute vec3 position;
+    attribute vec3 coord;
+    attribute float temperature;
+
+    varying float vTemperature;
+    varying vec4 color;
+
+    /*
+     * Vertex Shader changes the color of the Vector depending on the temperature
+     */
+    void main() {
+        //loads a texture that holds all the colors. temperature defines our position on it's X axis
+        color = texture2D( map, vec2(temperature,0.5));
+        vTemperature = temperature;
+
+        //takes over the position settings.
+        vec4 mvPosition = modelViewMatrix * (vec4(position, 1.0) + vec4( coord, 1.0 ));
+
+        //Makes hotter points bigger, so they stand out more.
+        gl_PointSize = (0.5 + temperature) * 1.5;
+        gl_Position = projectionMatrix * mvPosition;
+    }
+</script>
+<script id="fragmentshader" type="x-shader/x-fragment">
+    precision highp float;
+    varying float vTemperature;
+    varying vec4 color;
+
+    /*
+     * The Vertex Shader deals with the transparency of the fragments.
+     */
+    void main() {
+        vec4 tColor = color;
+
+        //The Alfa is multiplied by the Temperature. The hotter a point is, the less transparent it is.
+        gl_FragColor = vec4(tColor.rgb,vTemperature*0.5+0.1);
+    }
+</script>

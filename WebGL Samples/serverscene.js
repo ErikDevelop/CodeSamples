@@ -1,3 +1,7 @@
+/*
+ * This is the scene Object that does all the heavy lifting for us.
+ * It enters at Init, and the renderer later calls DrawScene and manages the updates for us.
+ */
 var ServerScene = function(){
     var self = this;
     var scene;
@@ -77,6 +81,9 @@ var ServerScene = function(){
     self.camera;
     self.loading_progress;
 
+    /*
+     * The Init function sets a few basic values for us.
+     */
     var init = function(){
         self.camera = new THREE.PerspectiveCamera(70, aspect_ratio, 1, 5 * M);
         scene = new THREE.Scene();
@@ -100,37 +107,6 @@ var ServerScene = function(){
         CPUDATA = [];
 
         PreloaderBridge().updateLoadProgress(5);
-    };
-
-    var orbit = function(pAxis, pZero, pRadius, pDegrees){
-        radials;
-        orbit_return_object = {};
-
-        radials = (pDegrees / 180) * Math.PI;
-
-        if(pAxis == 'z'){
-            orbit_return_object.x = pZero.x + Math.cos(radials) * pRadius;
-            orbit_return_object.y = pZero.y + Math.sin(radials) * pRadius;
-            orbit_return_object.z = pZero.z;
-        } else if(pAxis == 'y') {
-            orbit_return_object.x = pZero.x + Math.cos(radials) * pRadius;
-            orbit_return_object.y = pZero.y;
-            orbit_return_object.z = pZero.z + Math.sin(radials) * pRadius;
-        } else if(pAxis == 'x') {
-            orbit_return_object.x = pZero.x;
-            orbit_return_object.z = pZero.z + Math.cos(radials) * pRadius;
-            orbit_return_object.y = pZero.y + Math.sin(radials) * pRadius;
-        }
-
-        return orbit_return_object;
-    };
-
-    var distance = function(pVector31, pVector32){
-        return Math.sqrt(
-            (pVector31.x - pVector32.x) * (pVector31.x - pVector32.x) +
-            (pVector31.y - pVector32.y) * (pVector31.y - pVector32.y) +
-            (pVector31.z - pVector32.z) * (pVector31.z - pVector32.z)
-        );
     };
 
     function shuffle(array) {
@@ -208,6 +184,9 @@ var ServerScene = function(){
         return {r: r, g: g, b: b, a: factor};
     };
 
+    /*
+     * This is where the first significant draw gets made.
+     */
     self.drawScene = function(){
         data_manager = DataManager.getInstance();
 
@@ -269,7 +248,6 @@ var ServerScene = function(){
 
                 scene.add(dae);
 
-                //self.interpolatePoints();
                 PreloaderBridge().updateLoadProgress(15);
 
                 self.drawPoints();
@@ -280,7 +258,6 @@ var ServerScene = function(){
     };
 
     self.update = function(){
-       // if(typeof cloud != 'undefined') self.updateDrawpoints();
     };
 
     self.fixedUpdate = function(){
@@ -296,6 +273,9 @@ var ServerScene = function(){
 
     self.afterUpdate = function(){};
 
+    /*
+     * This function draws all the points in the Pointcloud
+     */
     self.drawPoints = function(){
         updateCounter = 0;
 
@@ -363,196 +343,9 @@ var ServerScene = function(){
         scene.add(cloud);
     };
 
-    self.colorPoints = function(){
-        var y_positions_array = [];
-        var y_temperatures_array = [];
-        var y_slices_array = [];
-        var gradient = [];
-
-        //get all unique y values and the related temperatures, pairing them by index in two arrays.
-        for (var yr = 0; yr < DATA.length; yr++){
-            if(y_positions_array.indexOf(DATA[yr].position.y) === -1){
-                y_positions_array.push(DATA[yr].position.y);
-                y_temperatures_array.push([DATA[yr].celsius]);
-            }
-            else{
-                y_temperatures_array[y_positions_array.indexOf(DATA[yr].position.y)].push(DATA[yr].celsius);
-            }
-        }
-
-        //combining the arrays
-        for(var ys = 0; ys < y_positions_array.length; ys++){
-            var obj = {};
-            obj.y = y_positions_array[ys];
-            var average_temp = 0;
-
-            for(var yt = 0; yt < y_temperatures_array[ys].length; yt++){
-                average_temp += parseInt(y_temperatures_array[ys][yt]);
-            }
-
-            average_temp = average_temp / y_temperatures_array[ys].length;
-
-            obj.celsius = average_temp;
-            y_slices_array.push(obj);
-        }
-
-        //sorting the combined array by Z value
-        y_slices_array.sort(function(a, b){
-            return a.y > b.y;
-        });
-
-        //constructing the gradient
-        for(var yh = 0; yh < BOXHEIGHT; yh++){
-            if(yh < y_slices_array[0].y / CM){
-
-                // Making a factor over the complete temperature spectrum using the current temperature.
-                gradient[yh] = (y_slices_array[0].celsius - MINTEMPERATURE) / (MAXTEMPERATURE-MINTEMPERATURE);
-
-            } else if(yh < y_slices_array[1].y  / CM){
-
-                //Making a factor over the complete temperature spectrum using the calculated gradient step between two colors.
-                gradient[yh] =
-                    //Gradient calculation over these two temperatures, returning degrees C
-                    ((y_slices_array[0].celsius +
-                    ((yh - y_slices_array[0].y / CM) / (y_slices_array[1].y / CM - y_slices_array[0].y / CM)) * //Factor over this range of the gradient.
-                    (y_slices_array[1].celsius - y_slices_array[0].celsius))- MINTEMPERATURE)
-                    / (MAXTEMPERATURE-MINTEMPERATURE)
-
-            } else if(yh < y_slices_array[2].y  / CM){
-
-                //Making a factor over the complete temperature spectrum using the calculated gradient step between two colors.
-                gradient[yh] =
-                    //Gradient calculation over these two temperatures, returning degrees C
-                    ((y_slices_array[1].celsius +
-                    ((yh - y_slices_array[1].y / CM) / (y_slices_array[2].y / CM - y_slices_array[1].y / CM)) * //Factor over this range of the gradient.
-                    (y_slices_array[2].celsius - y_slices_array[1].celsius))- MINTEMPERATURE)
-                    / (MAXTEMPERATURE-MINTEMPERATURE)
-
-            } else if(yh < y_slices_array[3].y  / CM){
-
-                //Making a factor over the complete temperature spectrum using the calculated gradient step between two colors.
-                gradient[yh] =
-                    //Gradient calculation over these two temperatures, returning degrees C
-                    ((y_slices_array[2].celsius +
-                    ((yh - y_slices_array[2].y / CM) / (y_slices_array[3].y / CM - y_slices_array[2].y / CM)) * //Factor over this range of the gradient.
-                    (y_slices_array[3].celsius - y_slices_array[2].celsius))- MINTEMPERATURE)
-                    / (MAXTEMPERATURE-MINTEMPERATURE);
-
-            } else {
-
-                //Making a factor over the complete temperature spectrum using the current temperature.
-                gradient[yh] = (y_slices_array[3].celsius - MINTEMPERATURE) / (MAXTEMPERATURE-MINTEMPERATURE);
-            }
-
-            for(var cx = 0; cx < BOXWIDTH; cx++){
-                for(var cz = 0; cz < BOXDEPTH; cz++){
-                    for(var cy = 0; cy < BOXHEIGHT; cy++){
-                        var index = cz * BOXWIDTH*BOXHEIGHT + cy *BOXWIDTH + cx;
-                        CloudTemperatureBuffer.setX(ReverseRandomIndex[index],gradient[cy]);
-                    }
-                }
-            }
-        }
-
-        self.loading_progress = 100;
-    };
-
-    self.colorPoints2 = function(){
-        var heat_array = [];
-
-        //create an array of unique z and y positions, allong with all temperatures sensed at those coordinates.
-        for (var zr = 0; zr < DATA.length; zr++){
-            var targetZ = Math.floor(DATA[zr].position.z / CM);
-
-            if(typeof heat_array[targetZ] == 'undefined') heat_array[targetZ] = [];
-            if(typeof heat_array[targetZ][DATA[zr].position.y] == 'undefined') heat_array[targetZ][DATA[zr].position.y] = [];
-            heat_array[targetZ][DATA[zr].position.y].push(DATA[zr].celsius);
-        }
-
-        //Calculate the averages over all z-y positions.
-        for(var hzi = 0; hzi < heat_array.length; hzi++){
-            if(typeof heat_array[hzi] != 'undefined'){
-                for(var hyi = 0; hyi < heat_array[hzi].length; hyi++){
-                    if(typeof heat_array[hzi][hyi] != 'undefined'){
-                        var avgTemp = 0;
-
-                        for(var hti = 0; hti < heat_array[hzi][hyi].length; hti++){
-                            avgTemp = avgTemp + parseInt(heat_array[hzi][hyi][hti]);
-                        }
-
-                        avgTemp = avgTemp / heat_array[hzi][hyi].length;
-                        heat_array[hzi][hyi] = avgTemp;
-                    }
-                }
-            }
-        }
-
-        //Draw the gradients
-        for(var gzi = 0; gzi < heat_array.length; gzi++){
-            if(typeof heat_array[gzi] != 'undefined') {
-                var latest_y = 0;
-                var next_y = 0;
-
-                for(var nyi = 0; nyi < BOXHEIGHT * CM; nyi++){
-                    if(typeof heat_array[gzi][nyi] != 'undefined'){
-                        next_y = nyi;
-                        break;
-                    }
-                }
-
-                var gradient = [];
-
-                for (var gyi = 0; gyi < BOXHEIGHT; gyi++){
-                    if(gyi * CM > next_y){
-                        latest_y = next_y;
-                        for(var nyi = gyi * CM; nyi < BOXHEIGHT * CM; nyi++){
-                            if(typeof heat_array[gzi][nyi] != 'undefined'){
-                                next_y = nyi;
-                                break;
-                            } else if(nyi == BOXHEIGHT * CM - 1) next_y = BOXHEIGHT * CM;
-                        }
-                    }
-
-                    if (latest_y == 0) {
-                        gradient[gyi] = (heat_array[gzi][next_y] - MINTEMPERATURE) / (MAXTEMPERATURE - MINTEMPERATURE);
-                    } else if (next_y == BOXHEIGHT * CM) {
-                        gradient[gyi] = (heat_array[gzi][latest_y] - MINTEMPERATURE) / (MAXTEMPERATURE - MINTEMPERATURE);
-                    } else {
-                        // Making a factor over the complete temperature spectrum using the calculated gradient step between two colors.
-                        gradient[gyi] =
-                            // Gradient calculation over these two temperatures, returning degrees C
-                            ((heat_array[gzi][latest_y] +
-                            ((gyi - latest_y / CM) / (next_y / CM - latest_y / CM)) * //Factor over this range of the gradient.
-                            (heat_array[gzi][next_y] - heat_array[gzi][latest_y]))- MINTEMPERATURE)
-                            / (MAXTEMPERATURE-MINTEMPERATURE);
-                    }
-                }
-
-                heat_array[gzi] = gradient;
-            }
-        }
-        //Fill in the pointcloud
-        var last_z = 0;
-        for(var nzi = 0; nzi < BOXHEIGHT * CM; nzi++){
-            if(typeof heat_array[nzi] != 'undefined'){
-                last_z = nzi;
-                break;
-            }
-        }
-
-        for(var cz = 0; cz < BOXDEPTH; cz++) {
-            if(typeof heat_array[cz] != 'undefined') last_z = cz;
-
-            for(var cx = 0; cx < BOXWIDTH; cx++){
-                for(var cy = 0; cy < BOXHEIGHT; cy++){
-                    var index = cz * BOXWIDTH*BOXHEIGHT + cy *BOXWIDTH + cx;
-                    CloudTemperatureBuffer.setX(ReverseRandomIndex[index],heat_array[last_z][cy]);
-                }
-            }
-
-        }
-    };
-
+    /*
+     * This function gives them color through the shaders and a custom temperature buffer.
+     */
     self.colorPoints3 = function(){
         var heat_array = [];
 
@@ -662,39 +455,9 @@ var ServerScene = function(){
         }
     };
 
-    /*self.interpolatePoints = function(){
-        var y_slices_array = [];
-        var x_positions_array = [];
-        var x_slices_array = [];
-        var zsteps = (BOXDEPTH * CM) / 46;
-
-        for (var yr = 0; yr < DATA.length; yr++){
-            if(y_slices_array.indexOf(DATA[yr].position.y) === -1) y_slices_array.push(DATA[yr].position.y);
-            if(x_positions_array.indexOf(DATA[yr].position.x) === -1) x_positions_array.push(DATA[yr].position.x);
-        }
-
-        console.log(y_slices_array);
-        console.log(x_positions_array);
-        console.log(x_positions_array);
-        console.log(x_positions_array.sort());
-        console.log(x_positions_array[0]);
-        console.log(x_positions_array[x_positions_array.length - 1]);
-
-        x_slices_array.push(x_positions_array[0] / 2);
-        x_slices_array.push(BOXWIDTH * CM / 2);
-        x_slices_array.push(BOXWIDTH * CM - ((BOXWIDTH * CM - x_positions_array[x_positions_array.length - 1]) / 2));
-
-        console.log(x_slices_array);
-
-        for(var ys = 0; ys < y_slices_array.length; ys++){
-            for(var xs = 0; xs < x_slices_array.length; xs++){
-                for(var zs = 0; zs < zsteps; zs++){
-                    DATA.push({celsius: "46.5", position: {x:x_slices_array[xs],y:y_slices_array[ys],z:46 * zs}, type: "Environmental"});
-                }
-            }
-        }
-    };*/
-
+    /*
+     * This function draws all the components, the visible parts with a measurement of their own.
+     */
     self.drawComponents = function(){
         for(var c = 0; c < CPUDATA.length; c++){
             processorColor = gradientProgression(0, CPUDATA[c].celsius);
@@ -713,110 +476,6 @@ var ServerScene = function(){
             edgy = new THREE.LineSegments( edgyGeometry, edgyMaterial );
             processorMesh.add(edgy);
         }
-    };
-
-    self.updateDrawpoints = function(){
-        if ((updateCounter+1)*BOXWIDTH*BOXHEIGHT > particleCount) {
-            updateCounter =0;
-        }
-
-        //update temperatures
-        for (var i = updateCounter*BOXWIDTH*BOXHEIGHT; i < (updateCounter+1)*BOXWIDTH*BOXHEIGHT; i++) {
-            var averagetemp = 0;
-            var averagecounter = 0;
-
-            oldtemp = CloudTemperatureBuffer.getX(i);
-            averagetemp = oldtemp;
-            averagecounter++;
-
-            posindex = RandomIndex[i];
-
-            //left of posindex;
-            if (((posindex - 1) % BOXWIDTH < posindex % BOXWIDTH) && (posindex-1 > 0)) {
-                var lefttemp = CloudTemperatureBuffer.getX(ReverseRandomIndex[posindex-1]);
-                averagetemp += lefttemp
-                averagecounter++;
-
-                if (lefttemp > oldtemp) {
-                    averagetemp += lefttemp*2
-                    averagecounter+=2;
-                }
-            }
-            //right of posindex;
-            if (((posindex + 1) % BOXWIDTH > posindex % BOXWIDTH) && (posindex+1 < particleCount)) {
-                var righttemp = CloudTemperatureBuffer.getX(ReverseRandomIndex[posindex+1]);
-                averagetemp += righttemp;
-                averagecounter++;
-                if (righttemp > oldtemp) {
-                    averagetemp += righttemp*2;
-                    averagecounter+=2;
-                }
-            }
-            //top of posindex;
-            if ((((posindex / BOXWIDTH) % BOXHEIGHT) > (((posindex-BOXWIDTH) / BOXWIDTH) % BOXHEIGHT)) && (posindex-BOXWIDTH > 0)) {
-                var toptemp= CloudTemperatureBuffer.getX(ReverseRandomIndex[posindex-BOXWIDTH]);
-                averagetemp += toptemp;
-                averagecounter++;
-                if (toptemp > oldtemp) {
-                    averagetemp += toptemp*2;
-                    averagecounter+=2;
-                }
-            }
-            //bottom of posindex;
-            if ((((posindex / BOXWIDTH) % BOXHEIGHT) < (((posindex+BOXWIDTH) / BOXWIDTH) % BOXHEIGHT)) && (posindex+BOXWIDTH < particleCount)) {
-                var bottomtemp = CloudTemperatureBuffer.getX(ReverseRandomIndex[posindex+BOXWIDTH]);
-                averagetemp += bottomtemp;
-                averagecounter++;
-                if (bottomtemp > oldtemp) {
-                    averagetemp += bottomtemp*2;
-                    averagecounter+=2;
-                }
-            }
-            //front of posindex;
-            if ( ((posindex / (BOXWIDTH*BOXHEIGHT)) > ((posindex-BOXWIDTH*BOXHEIGHT) / (BOXWIDTH*BOXHEIGHT))) && (posindex-BOXWIDTH*BOXHEIGHT > 0)) {
-                var fronttemp= CloudTemperatureBuffer.getX(ReverseRandomIndex[posindex-BOXWIDTH*BOXHEIGHT]);
-                averagetemp += fronttemp;
-                averagecounter++;
-                if (fronttemp > oldtemp) {
-                    averagetemp += fronttemp*2;
-                    averagecounter+=2;
-                }
-            }
-            //back of posindex;
-            if ( ((posindex / (BOXWIDTH*BOXHEIGHT)) < ((posindex+BOXWIDTH*BOXHEIGHT) / (BOXWIDTH*BOXHEIGHT))) && (posindex+BOXWIDTH*BOXHEIGHT < particleCount)) {
-                var backtemp = CloudTemperatureBuffer.getX(ReverseRandomIndex[posindex+BOXWIDTH*BOXHEIGHT]);
-                averagetemp += backtemp;
-                averagecounter++;
-                if (backtemp > oldtemp) {
-                    averagetemp += backtemp	*2;
-                    averagecounter+=2;
-                }
-            }
-
-            var newtemp = (averagetemp / (averagecounter))*damping;
-            CloudTemperatureBuffer.setX(i,newtemp);
-        }
-
-        for(var j = 0; j < DATA.length; j++){
-            var t = (Math.min(Math.max( (DATA[j].celsius-15) / (MAXTEMPERATURE-15) , 0), 1));
-
-            var xs = Math.floor(DATA[j].position.x / VERTEXSIZE);
-            var ys = Math.floor(DATA[j].position.y / VERTEXSIZE);
-            var zs = Math.floor(DATA[j].position.z / VERTEXSIZE);
-
-            var index = zs * BOXWIDTH*BOXHEIGHT + ys *BOXWIDTH + xs;
-            CloudTemperatureBuffer.setX(ReverseRandomIndex[index],t);
-
-            var xs = Math.ceil(DATA[j].position.x / VERTEXSIZE);
-            var ys = Math.ceil(DATA[j].position.y / VERTEXSIZE);
-            var zs = Math.ceil(DATA[j].position.z / VERTEXSIZE);
-
-            var index = zs * BOXWIDTH*BOXHEIGHT + ys *BOXWIDTH + xs;
-            CloudTemperatureBuffer.setX(ReverseRandomIndex[index],t);
-
-        }
-        CloudTemperatureBuffer.needsUpdate = true;
-        updateCounter++;
     };
 
     self.setAspectRatio = function(pRatio){
