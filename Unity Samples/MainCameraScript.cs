@@ -44,27 +44,35 @@ public class MainCameraScript : MonoBehaviour
 
     void FixedUpdate()
     {
+        //A more Accurate name would be 'follow', as this camera loosely follows the player around.
         if (camState == cameraStates.behind)
         {
+            //calculates an offset between the character's position and the camera.
             Vector3 characterOffset = followTransform.position + new Vector3(0f, distanceUp, 0f);
 
+            //Calculates the diffirence between the current position and the player's position.
             lookDir = characterOffset - transform.position;
+            //Prevent the Camera from Rolling.
             lookDir.y = 0;
+
+            //Normalise the direction.
             lookDir.Normalize();
 
-            //targetPosition = followTransform.position + followTransform.up * distanceUp - followTransform.forward * distanceAway;
+            //Readjusts the position.
             targetPosition = characterOffset + followTransform.up * distanceUp - lookDir * distanceAway;
-
-            //Slowly moves the camera torwards the targeted position over Time.
-            //transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * Smooth);
-            //SmoothPosition(transform.position, targetPosition);
         }
+        //target happens when the player holds down Fire3. It centers the camera behind the player.
         else if (camState == cameraStates.target)
         {
+            //Locks the Camera at the Player's backside and simply follows their position with the Camera offset.
             targetPosition = followTransform.position + followTransform.up * distanceUp - followTransform.forward * targetDistanceAway;
         }
 
+
+        //Smoothly sends the camera to it's new position.
         SmoothPosition(transform.position, targetPosition);
+
+        //Look at the Player.
         transform.LookAt(followTransform);
     }
 

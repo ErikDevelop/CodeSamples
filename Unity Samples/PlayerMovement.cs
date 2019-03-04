@@ -37,14 +37,17 @@ public class PlayerMovement : MonoBehaviour
         scroll = Input.GetAxis("Mouse ScrollWheel");
         fire3  = Input.GetButton("Fire3");
 
+        //handles user input and sets the required animation booleans.
         if (Input.GetButton("Jump")) anim.SetBool("leaping", true);
         else anim.SetBool("leaping", false);
 
+        //This function translated Input to World Space, as the movement of the Character is relative to the Camera. See Line 123
         StickToWorldspace(transform, cam.transform, ref direction, ref moveSpeed);
 
         if (IsInLocomotion()) anim.SetBool("moving", true);
         else anim.SetBool("moving", false);
 
+        //Fire3 Enables a locked screen, which changes the Player Character's behavior. This appoints the right animations.
         if (fire3)
         {
             anim.SetBool("targeting", true);
@@ -57,16 +60,9 @@ public class PlayerMovement : MonoBehaviour
                 else if (v < 0) targetingMoveDirection = 2;
 
                 anim.SetInteger("direction", targetingMoveDirection);
-                //Vector3 movementDirection = new Vector3(h, 0, v);
-                //Vector3 movementDirection = new Vector3(h, 0, v);
-
-                //transform.Translate(movementDirection * targetingMoveSpeed * Time.deltaTime);
-                //rb.velocity = movementDirection * targetingMoveSpeed;
             }
-
-            //if (anim.GetCurrentAnimatorStateInfo(0).IsName("Player_Roll_Forward") && !IsInLocomotion()) transform.Translate(Vector3.forward * moveSpeed * Time.deltaTime);
-            //if (anim.GetCurrentAnimatorStateInfo(0).IsName("Player_Roll_Forward") && !IsInLocomotion()) rb.velocity = transform.forward * moveSpeed;
         }
+        //Otherwise they move normally.
         else
         {
             anim.SetBool("targeting", false);
@@ -76,18 +72,8 @@ public class PlayerMovement : MonoBehaviour
 
             anim.SetInteger("moveSpeed", sneakSpeed);
 
-            //if (anim.GetCurrentAnimatorStateInfo(0).IsName("Player_Roll_Forward") && !IsInLocomotion()) transform.Translate(Vector3.forward * moveSpeed * Time.deltaTime);
-            //if (anim.GetCurrentAnimatorStateInfo(0).IsName("Player_Roll_Forward") && !IsInLocomotion()) rb.velocity = transform.forward * moveSpeed;
             if (IsInLocomotion())
             {
-                /*
-                if (sneakSpeed == 2) transform.Translate(Vector3.forward * moveSpeed * Time.deltaTime);
-                else if (sneakSpeed == 1) transform.Translate(Vector3.forward * sneakMoveSpeed * Time.deltaTime);
-                 */
-                /*if (sneakSpeed == 2) rb.velocity = transform.forward * moveSpeed;
-                else if (sneakSpeed == 1) rb.velocity = transform.forward * sneakMoveSpeed;*/
-
-                //transform.rotation = Quaternion.LookRotation(direction);
                 lookRotation = Quaternion.LookRotation(direction);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, lookRotation, Time.deltaTime * rotationDegreesPerSecond);
 
@@ -97,6 +83,7 @@ public class PlayerMovement : MonoBehaviour
 
     void FixedUpdate()
     {
+        //Entering 'Targeting', or Locked Camera mode.
         if (fire3)
         {
             if (anim.GetCurrentAnimatorStateInfo(0).IsName("Player_Roll_Forward")) rb.velocity = transform.forward * (targetingMoveSpeed * 2);
